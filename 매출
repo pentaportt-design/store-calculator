@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>팔감댁 대시보드</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0f0f;
+    --surface: #181818;
+    --surface2: #222222;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #f0f0f0;
+    --text2: #888;
+    --text3: #555;
+    --green: #4ade80;
+    --red: #f87171;
+    --blue: #60a5fa;
+  }
+  html { font-size: 14px; }
+  body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; min-height: 100vh; line-height: 1.6; }
+ 
+  header { border-bottom: 1px solid var(--border); padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: rgba(15,15,15,0.92); backdrop-filter: blur(12px); z-index: 100; }
+  .logo { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; display: flex; align-items: center; gap: 10px; }
+  .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .header-date { font-size: 12px; color: var(--text3); font-family: 'DM Mono', monospace; }
+ 
+  main { max-width: 980px; margin: 0 auto; padding: 32px 24px 64px; }
+ 
+  .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 40px; }
+  .summary-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; position: relative; overflow: hidden; }
+  .summary-card::before { content:''; position:absolute; top:0;left:0;right:0; height:2px; }
+  .summary-card.green::before { background: var(--green); }
+  .summary-card.red::before { background: var(--red); }
+  .summary-card.blue::before { background: var(--blue); }
+  .summary-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; font-family: 'DM Mono', monospace; }
+  .summary-value { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; font-family: 'DM Mono', monospace; }
+  .summary-value.green { color: var(--green); }
+  .summary-value.red { color: var(--red); }
+ 
+  .section { margin-bottom: 40px; }
+  .section-title { font-size: 13px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: 0.6px; font-family: 'DM Mono', monospace; margin-bottom: 16px; }
+  .chart-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .chart-wrap { position: relative; width: 100%; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+  .bar-list { display: flex; flex-direction: column; gap: 10px; }
+  .bar-item-label { font-size: 12px; color: var(--text2); margin-bottom: 4px; display: flex; justify-content: space-between; }
+  .bar-track { background: var(--surface2); border-radius: 3px; height: 6px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+  .bar-sub { font-size: 11px; color: var(--text3); margin-top: 3px; font-family: 'DM Mono', monospace; }
+ 
+  .tab-row { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+  .tab-btn { background: transparent; border: 1px solid var(--border2); border-radius: 6px; padding: 5px 14px; font-size: 12px; cursor: pointer; color: var(--text2); font-family: 'Noto Sans KR', sans-serif; transition: all 0.15s; }
+  .tab-btn:hover { border-color: rgba(255,255,255,0.25); color: var(--text); }
+  .tab-btn.active { background: rgba(96,165,250,0.15); border-color: rgba(96,165,250,0.4); color: var(--blue); }
+ 
+  .divider { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+ 
+  .input-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; }
+  .input-panel-title { font-size: 14px; font-weight: 500; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .input-panel-title .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--blue); }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .form-field label { display: block; font-size: 11px; color: var(--text3); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'DM Mono', monospace; }
+  .form-field input, .form-field select { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; padding: 9px 12px; font-size: 13px; color: var(--text); font-family: 'Noto Sans KR', sans-serif; outline: none; transition: border-color 0.15s; }
+  .form-field input:focus, .form-field select:focus { border-color: rgba(96,165,250,0.5); }
+  .form-field select option { background: #222; }
+  .submit-btn { width: 100%; padding: 11px; background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.3); border-radius: 8px; color: var(--blue); font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; transition: all 0.15s; margin-top: 4px; }
+  .submit-btn:hover { background: rgba(96,165,250,0.2); }
+  .submit-btn:active { transform: scale(0.99); }
+  .msg { font-size: 12px; min-height: 18px; margin-top: 8px; font-family: 'DM Mono', monospace; }
+ 
+  .data-table-wrap { margin-top: 16px; max-height: 280px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead th { background: var(--surface2); padding: 9px 12px; text-align: left; color: var(--text3); font-weight: 500; position: sticky; top: 0; font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.4px; }
+  tbody td { padding: 8px 12px; border-top: 1px solid var(--border); color: var(--text2); vertical-align: middle; }
+  tbody tr:hover td { background: rgba(255,255,255,0.02); }
+  .del-btn { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 15px; padding: 2px 6px; border-radius: 4px; transition: all 0.1s; }
+  .del-btn:hover { color: var(--red); background: rgba(248,113,113,0.12); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+ 
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+ 
+  @media (max-width: 600px) {
+    .summary-grid { grid-template-columns: 1fr; }
+    .two-col { grid-template-columns: 1fr; }
+    .form-grid { grid-template-columns: 1fr; }
+    main { padding: 20px 16px 48px; }
+  }
+</style>
+</head>
+<body>
+ 
+<header>
+  <div class="logo"><span class="logo-dot"></span>팔감댁 대시보드</div>
+  <div class="header-date" id="today-date"></div>
+</header>
+ 
+<main>
+  <div class="summary-grid" id="summary-grid"></div>
+ 
+  <div class="section">
+    <div class="section-title">날짜별 매출 입금</div>
+    <div class="chart-box">
+      <div class="legend"><span class="legend-item"><span class="legend-dot" style="background:#60a5fa;border-radius:50%;"></span>팔감댁 매출</span></div>
+      <div class="chart-wrap" style="height:200px;"><canvas id="revenueChart" role="img" aria-label="날짜별 매출 입금 선 그래프"></canvas></div>
+    </div>
+  </div>
+ 
+  <div class="section">
+    <div class="section-title">항목별 지출 구성</div>
+    <div class="chart-box">
+      <div class="legend" id="brand-legend"></div>
+      <div class="two-col">
+        <div class="chart-wrap" style="height:260px;"><canvas id="brandChart" role="img" aria-label="항목별 지출 도넛 차트"></canvas></div>
+        <div class="bar-list" id="brand-bar-list"></div>
+      </div>
+    </div>
+  </div>
+ 
+  <div class="section">
+    <div class="section-title">팔감댁 지출 — 항목별</div>
+    <div class="chart-box">
+      <div class="tab-row" id="item-tab-row">
+        <button class="tab-btn active" onclick="switchItemTab('donut',this)">비율</button>
+        <button class="tab-btn" onclick="switchItemTab('bar',this)">금액 비교</button>
+      </div>
+      <div class="legend" id="item-legend"></div>
+      <div class="two-col">
+        <div class="chart-wrap" style="height:220px;"><canvas id="itemChart" role="img" aria-label="팔감댁 항목별 지출 차트"></canvas></div>
+        <div class="bar-list" id="item-bar-list"></div>
+      </div>
+    </div>
+  </div>
+ 
+  <div class="section">
+    <div class="section-title">개인지출 세부 내역</div>
+    <div class="chart-box">
+      <div class="legend" id="personal-legend"></div>
+      <div class="two-col">
+        <div class="chart-wrap" style="height:220px;"><canvas id="personalChart" role="img" aria-label="개인지출 세부 도넛 차트"></canvas></div>
+        <div class="bar-list" id="personal-bar-list"></div>
+      </div>
+    </div>
+  </div>
+ 
+  <div class="section">
+    <div class="section-title">공과금 세부 내역</div>
+    <div class="chart-box">
+      <div class="legend" id="gov-legend"></div>
+      <div class="two-col">
+        <div class="chart-wrap" style="height:220px;"><canvas id="govChart" role="img" aria-label="공과금 세부 도넛 차트"></canvas></div>
+        <div class="bar-list" id="gov-bar-list"></div>
+      </div>
+    </div>
+  </div>
+ 
+  <hr class="divider">
+ 
+  <div class="input-panel">
+    <div class="input-panel-title"><span class="dot"></span>데이터 입력</div>
+    <div class="tab-row" id="input-tab-row">
+      <button class="tab-btn active" onclick="switchInputTab('revenue',this)">매출 입금</button>
+      <button class="tab-btn" onclick="switchInputTab('expense',this)">지출</button>
+      <button class="tab-btn" onclick="switchInputTab('list',this)">전체 내역</button>
+    </div>
+ 
+    <div id="panel-revenue">
+      <div class="form-grid">
+        <div class="form-field"><label>날짜</label><input type="date" id="r-date"></div>
+        <div class="form-field"><label>금액 (원)</label><input type="number" id="r-amount" placeholder="1500000"></div>
+      </div>
+      <button class="submit-btn" onclick="addRevenue()">+ 매출 추가</button>
+      <div class="msg" id="r-msg"></div>
+      <div class="data-table-wrap">
+        <table><thead><tr><th>날짜</th><th>금액</th><th></th></tr></thead><tbody id="revenue-tbody"></tbody></table>
+      </div>
+    </div>
+ 
+    <div id="panel-expense" style="display:none;">
+      <div class="form-grid">
+        <div class="form-field"><label>날짜</label><input type="date" id="e-date"></div>
+        <div class="form-field"><label>브랜드</label>
+          <select id="e-brand">
+            <option value="팔감댁">팔감댁</option>
+            <option value="개인지출">개인지출</option>
+            <option value="주유비">주유비</option>
+            <option value="택배비">택배비</option>
+            <option value="공과금">공과금</option>
+          </select>
+        </div>
+        <div class="form-field"><label>항목명</label><input type="text" id="e-item" placeholder="식재료, 용기, 아이스박스..."></div>
+        <div class="form-field"><label>금액 (원)</label><input type="number" id="e-amount" placeholder="50000"></div>
+      </div>
+      <button class="submit-btn" onclick="addExpense()">+ 지출 추가</button>
+      <div class="msg" id="e-msg"></div>
+      <div class="data-table-wrap">
+        <table><thead><tr><th>날짜</th><th>브랜드</th><th>항목</th><th>금액</th><th></th></tr></thead><tbody id="expense-tbody"></tbody></table>
+      </div>
+    </div>
+ 
+    <div id="panel-list" style="display:none;">
+      <div class="data-table-wrap" style="max-height:380px;">
+        <table><thead><tr><th>날짜</th><th>구분</th><th>브랜드/항목</th><th>금액</th><th></th></tr></thead><tbody id="all-tbody"></tbody></table>
+      </div>
+    </div>
+  </div>
+</main>
+ 
+<script>
+const STORAGE_KEY = 'ddangchojang_data_v2';
+const BRAND_COLORS = {
+  '팔감댁':'#fb923c','개인지출':'#a78bfa',
+  '주유비':'#fbbf24','자동차':'#60a5fa','택배비':'#f472b6','공과금':'#f87171'
+};
+const ITEM_COLORS = ['#60a5fa','#fb923c','#4ade80','#a78bfa','#fbbf24','#f472b6','#2dd4bf','#f87171','#e879f9','#34d399'];
+ 
+const DEFAULT_DATA = {
+  revenues:[
+    {id:1,date:'2026-05-04',amount:1520080},
+    {id:2,date:'2026-05-06',amount:1379464},
+    {id:3,date:'2026-05-07',amount:1447418},
+    {id:4,date:'2026-05-08',amount:577425},
+  ],
+  expenses:[
+    {id:1,date:'2026-05-01',brand:'개인지출',item:'커피',amount:3300},
+    {id:2,date:'2026-05-01',brand:'개인지출',item:'인천공항 택시비',amount:19200},
+    {id:3,date:'2026-05-01',brand:'개인지출',item:'인천공항 주차비',amount:13500},
+    {id:4,date:'2026-05-01',brand:'개인지출',item:'강태호/현태섭',amount:32000},
+    {id:5,date:'2026-05-01',brand:'개인지출',item:'양촌리',amount:22900},
+    {id:6,date:'2026-05-01',brand:'팔감댁',item:'식자재',amount:72630},
+    {id:7,date:'2026-05-01',brand:'팔감댁',item:'포장 용기',amount:49600},
+    {id:8,date:'2026-05-01',brand:'팔감댁',item:'아이스박스',amount:117000},
+    {id:9,date:'2026-05-01',brand:'팔감댁',item:'포장 용기',amount:27900},
+    {id:10,date:'2026-05-01',brand:'팔감댁',item:'식자재',amount:3520},
+    {id:11,date:'2026-05-01',brand:'팔감댁',item:'식자재',amount:118600},
+    {id:12,date:'2026-05-01',brand:'개인지출',item:'교보문고 책',amount:16020},
+    {id:13,date:'2026-05-02',brand:'개인지출',item:'우빈 술값',amount:25000},
+    {id:14,date:'2026-05-02',brand:'개인지출',item:'트러플 선물세트',amount:57233},
+    {id:15,date:'2026-05-02',brand:'개인지출',item:'커피',amount:3300},
+    {id:16,date:'2026-05-03',brand:'팔감댁',item:'식자재',amount:103600},
+    {id:17,date:'2026-05-03',brand:'팔감댁',item:'아이스박스',amount:63000},
+    {id:18,date:'2026-05-03',brand:'개인지출',item:'꽃다발',amount:32000},
+    {id:19,date:'2026-05-03',brand:'개인지출',item:'커피',amount:3300},
+    {id:20,date:'2026-05-03',brand:'개인지출',item:'스벅 선물',amount:12000},
+    {id:21,date:'2026-05-03',brand:'팔감댁',item:'아이스박스',amount:33250},
+    {id:22,date:'2026-05-03',brand:'팔감댁',item:'포장 용기',amount:90280},
+    {id:23,date:'2026-05-03',brand:'팔감댁',item:'보냉팩',amount:47000},
+    {id:24,date:'2026-05-03',brand:'팔감댁',item:'아이스박스',amount:117000},
+    {id:25,date:'2026-05-03',brand:'팔감댁',item:'포장 용기',amount:82178},
+    {id:26,date:'2026-05-04',brand:'개인지출',item:'투썸 데이트',amount:10500},
+    {id:27,date:'2026-05-04',brand:'개인지출',item:'참치김밥',amount:4500},
+ 
+    {id:30,date:'2026-05-04',brand:'팔감댁',item:'식자재',amount:16900},
+    {id:31,date:'2026-05-05',brand:'개인지출',item:'주유비',amount:50000},
+    {id:32,date:'2026-05-05',brand:'개인지출',item:'호올스',amount:3300},
+    {id:33,date:'2026-05-05',brand:'개인지출',item:'커피',amount:1300},
+    {id:34,date:'2026-05-05',brand:'개인지출',item:'토스트',amount:11400},
+    {id:35,date:'2026-05-06',brand:'공과금',item:'자동차 할부',amount:651200},
+    {id:36,date:'2026-05-06',brand:'개인지출',item:'커피',amount:3300},
+    {id:37,date:'2026-05-06',brand:'팔감댁',item:'포장 용기',amount:90308},
+    {id:38,date:'2026-05-06',brand:'팔감댁',item:'식자재',amount:162300},
+    {id:39,date:'2026-05-06',brand:'팔감댁',item:'식자재',amount:74580},
+    {id:40,date:'2026-05-07',brand:'팔감댁',item:'4월 택배비 납부',amount:1838170},
+    {id:41,date:'2026-05-07',brand:'팔감댁',item:'식자재',amount:128900},
+    {id:42,date:'2026-05-07',brand:'개인지출',item:'커피',amount:3300},
+    {id:43,date:'2026-05-07',brand:'개인지출',item:'책',amount:37000},
+    {id:44,date:'2026-05-07',brand:'개인지출',item:'선물',amount:22700},
+    {id:45,date:'2026-05-08',brand:'개인지출',item:'커피',amount:3300},
+    {id:46,date:'2026-05-08',brand:'팔감댁',item:'식자재',amount:17800},
+    {id:47,date:'2026-05-08',brand:'팔감댁',item:'포장 용기',amount:37200},
+    {id:48,date:'2026-05-08',brand:'팔감댁',item:'아이스박스',amount:80000},
+    {id:49,date:'2026-05-08',brand:'팔감댁',item:'아이스박스',amount:48200},
+    {id:50,date:'2026-05-08',brand:'팔감댁',item:'식자재',amount:3080},
+    {id:51,date:'2026-05-08',brand:'팔감댁',item:'식자재',amount:15000},
+    {id:52,date:'2026-05-08',brand:'공과금',item:'부가세',amount:687010},
+    {id:53,date:'2026-05-09',brand:'개인지출',item:'음료수',amount:1500},
+    {id:54,date:'2026-05-09',brand:'개인지출',item:'음료수',amount:500},
+    {id:55,date:'2026-05-09',brand:'개인지출',item:'도프',amount:34000},
+    {id:56,date:'2026-05-09',brand:'개인지출',item:'커피',amount:11000},
+    {id:57,date:'2026-05-09',brand:'개인지출',item:'카페인 중독',amount:12300},
+  ],
+  nextId:200
+};
+ 
+function loadData() {
+  try { const r=localStorage.getItem(STORAGE_KEY); if(r) return JSON.parse(r); } catch(e){}
+  return JSON.parse(JSON.stringify(DEFAULT_DATA));
+}
+function saveData(){ localStorage.setItem(STORAGE_KEY,JSON.stringify(state)); }
+ 
+function makeDoughnut(canvasId, labels, data, colors){
+  const total=data.reduce((s,v)=>s+v,0);
+  return new Chart(document.getElementById(canvasId),{
+    type:'doughnut',
+    plugins:[ChartDataLabels],
+    data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0,hoverOffset:4}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,cutout:'55%',
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>ctx.raw.toLocaleString()+'원'},backgroundColor:'#222',titleColor:'#aaa',bodyColor:'#f0f0f0',borderColor:'rgba(255,255,255,0.08)',borderWidth:1},
+        datalabels:{
+          color:'#fff',
+          font:{size:10,weight:'500'},
+          formatter:(value,ctx)=>{
+            const total=ctx.dataset.data.reduce((s,v)=>s+v,0);
+            const pct=total>0?Math.round(value/total*100):0;
+            if(pct<5) return '';
+            const label=ctx.chart.data.labels[ctx.dataIndex];
+            return label+' '+pct+'%\n'+value.toLocaleString()+'원';
+          },
+          textAlign:'center',
+          display:(ctx)=>{
+            const total=ctx.dataset.data.reduce((s,v)=>s+v,0);
+            const pct=ctx.dataset.data[ctx.dataIndex]/total*100;
+            return pct>=5;
+          }
+        }
+      }
+    }
+  });
+}
+ 
+let state=loadData();
+let itemTab='donut';
+let revenueChartInst,itemChartInst,brandChartInst;
+ 
+function fmt(n){ return Math.round(n).toLocaleString()+'원'; }
+function today(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+ 
+document.getElementById('today-date').textContent=new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+ 
+function renderSummary(){
+  const totalRev=state.revenues.reduce((s,r)=>s+r.amount,0);
+  const totalExp=state.expenses.reduce((s,e)=>s+e.amount,0);
+  const profit=totalRev-totalExp;
+  document.getElementById('summary-grid').innerHTML=`
+    <div class="summary-card green"><div class="summary-label">총 매출 입금</div><div class="summary-value green">${fmt(totalRev)}</div></div>
+    <div class="summary-card red"><div class="summary-label">총 지출</div><div class="summary-value red">${fmt(totalExp)}</div></div>
+    <div class="summary-card blue"><div class="summary-label">순이익 (추정)</div><div class="summary-value ${profit>=0?'green':'red'}">${fmt(profit)}</div></div>
+  `;
+}
+ 
+function renderRevenueChart(){
+  const sorted=[...state.revenues].sort((a,b)=>a.date.localeCompare(b.date));
+  if(revenueChartInst) revenueChartInst.destroy();
+  revenueChartInst=new Chart(document.getElementById('revenueChart'),{
+    type:'line',
+    data:{labels:sorted.map(r=>r.date.slice(5).replace('-','/')),datasets:[{label:'매출',data:sorted.map(r=>r.amount),borderColor:'#60a5fa',backgroundColor:'rgba(96,165,250,0.07)',borderWidth:2,pointBackgroundColor:'#60a5fa',pointRadius:4,pointHoverRadius:6,fill:true,tension:0.3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.raw.toLocaleString()+'원'},backgroundColor:'#222',titleColor:'#aaa',bodyColor:'#f0f0f0',borderColor:'rgba(255,255,255,0.08)',borderWidth:1}},scales:{x:{ticks:{color:'#555',font:{size:11},autoSkip:false},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#555',font:{size:11},callback:v=>(v/10000).toFixed(0)+'만'},grid:{color:'rgba(255,255,255,0.04)'}}}}
+  });
+}
+ 
+function getItemTotals(){
+  const map={};
+  state.expenses.filter(e=>e.brand==='팔감댁').forEach(e=>{map[e.item]=(map[e.item]||0)+e.amount;});
+  return Object.entries(map).sort((a,b)=>b[1]-a[1]);
+}
+ 
+function renderItemChart(){
+  const entries=getItemTotals();
+  const labels=entries.map(e=>e[0]);
+  const data=entries.map(e=>e[1]);
+  const total=data.reduce((s,v)=>s+v,0);
+  const colors=labels.map((_,i)=>ITEM_COLORS[i%ITEM_COLORS.length]);
+  document.getElementById('item-legend').innerHTML=labels.map((l,i)=>`<span class="legend-item"><span class="legend-dot" style="background:${colors[i]};"></span>${l}</span>`).join('');
+  document.getElementById('item-bar-list').innerHTML=entries.map((e,i)=>{
+    const pct=total>0?Math.round(e[1]/total*100):0;
+    return `<div><div class="bar-item-label"><span>${e[0]}</span><span style="font-family:'DM Mono',monospace;">${pct}%</span></div><div class="bar-track"><div class="bar-fill" style="background:${colors[i]};width:${pct}%;"></div></div><div class="bar-sub">${fmt(e[1])}</div></div>`;
+  }).join('');
+  if(itemChartInst) itemChartInst.destroy();
+  if(itemTab==='donut'){
+    itemChartInst=makeDoughnut('itemChart',labels,data,colors);
+  } else {
+    itemChartInst=new Chart(document.getElementById('itemChart'),{type:'bar',data:{labels,datasets:[{data,backgroundColor:colors,borderRadius:5,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.raw.toLocaleString()+'원'},backgroundColor:'#222',titleColor:'#aaa',bodyColor:'#f0f0f0',borderColor:'rgba(255,255,255,0.08)',borderWidth:1}},scales:{x:{ticks:{color:'#555',font:{size:10}},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#555',font:{size:11},callback:v=>(v/10000).toFixed(0)+'만'},grid:{color:'rgba(255,255,255,0.04)'}}}}});
+  }
+}
+ 
+function renderBrandChart(){
+  const ddangTotal=state.expenses.filter(e=>e.brand==='팔감댁').reduce((s,e)=>s+e.amount,0);
+  const personalTotal=state.expenses.filter(e=>e.brand==='개인지출').reduce((s,e)=>s+e.amount,0);
+  const govTotal=state.expenses.filter(e=>e.brand==='공과금').reduce((s,e)=>s+e.amount,0);
+ 
+  const labels=['팔감댁','개인지출','공과금'];
+  const data=[ddangTotal,personalTotal,govTotal];
+  const colors=['#fb923c','#a78bfa','#f87171'];
+  const total=data.reduce((s,v)=>s+v,0);
+ 
+  document.getElementById('brand-legend').innerHTML=labels.map((l,i)=>`<span class="legend-item"><span class="legend-dot" style="background:${colors[i]};"></span>${l} <span style="font-family:'DM Mono',monospace;color:var(--text3);">${fmt(data[i])}</span></span>`).join('');
+  document.getElementById('brand-bar-list').innerHTML=labels.map((l,i)=>{
+    const pct=total>0?Math.round(data[i]/total*100):0;
+    return `<div><div class="bar-item-label"><span>${l}</span><span style="font-family:'DM Mono',monospace;">${pct}% · ${fmt(data[i])}</span></div><div class="bar-track"><div class="bar-fill" style="background:${colors[i]};width:${pct}%;"></div></div></div>`;
+  }).join('');
+ 
+  if(brandChartInst) brandChartInst.destroy();
+  brandChartInst=makeDoughnut('brandChart',labels,data,colors);
+ 
+  renderPersonalBreakdown();
+  renderGovBreakdown();
+}
+ 
+let personalChartInst, govChartInst;
+ 
+function renderPersonalBreakdown(){
+  const itemMap={};
+  state.expenses.filter(e=>e.brand==='개인지출').forEach(e=>{itemMap[e.item]=(itemMap[e.item]||0)+e.amount;});
+  const entries=Object.entries(itemMap).sort((a,b)=>b[1]-a[1]);
+  const labels=entries.map(([k])=>k);
+  const data=entries.map(([,v])=>v);
+  const total=data.reduce((s,v)=>s+v,0);
+  const colors=labels.map((_,i)=>ITEM_COLORS[i%ITEM_COLORS.length]);
+  document.getElementById('personal-legend').innerHTML=labels.map((l,i)=>`<span class="legend-item"><span class="legend-dot" style="background:${colors[i]};"></span>${l} <span style="font-family:'DM Mono',monospace;color:var(--text3);">${fmt(data[i])}</span></span>`).join('');
+  document.getElementById('personal-bar-list').innerHTML=entries.map(([item,amount],i)=>{
+    const pct=total>0?Math.round(amount/total*100):0;
+    return `<div style="margin-bottom:10px;"><div class="bar-item-label"><span>${item}</span><span style="font-family:'DM Mono',monospace;">${pct}% · ${fmt(amount)}</span></div><div class="bar-track"><div class="bar-fill" style="background:${colors[i]};width:${pct}%;"></div></div></div>`;
+  }).join('');
+  if(personalChartInst) personalChartInst.destroy();
+  personalChartInst=makeDoughnut('personalChart',labels,data,colors);
+}
+ 
+function renderGovBreakdown(){
+  const itemMap={};
+  state.expenses.filter(e=>e.brand==='공과금').forEach(e=>{itemMap[e.item]=(itemMap[e.item]||0)+e.amount;});
+  const entries=Object.entries(itemMap).sort((a,b)=>b[1]-a[1]);
+  const labels=entries.map(([k])=>k);
+  const data=entries.map(([,v])=>v);
+  const total=data.reduce((s,v)=>s+v,0);
+  const colors=labels.map((_,i)=>ITEM_COLORS[i%ITEM_COLORS.length]);
+  document.getElementById('gov-legend').innerHTML=labels.map((l,i)=>`<span class="legend-item"><span class="legend-dot" style="background:${colors[i]};"></span>${l} <span style="font-family:'DM Mono',monospace;color:var(--text3);">${fmt(data[i])}</span></span>`).join('');
+  document.getElementById('gov-bar-list').innerHTML=entries.map(([item,amount],i)=>{
+    const pct=total>0?Math.round(amount/total*100):0;
+    return `<div style="margin-bottom:10px;"><div class="bar-item-label"><span>${item}</span><span style="font-family:'DM Mono',monospace;">${pct}% · ${fmt(amount)}</span></div><div class="bar-track"><div class="bar-fill" style="background:${colors[i]};width:${pct}%;"></div></div></div>`;
+  }).join('');
+  if(govChartInst) govChartInst.destroy();
+  govChartInst=makeDoughnut('govChart',labels,data,colors);
+}
+ 
+function getBadgeStyle(brand){ const c=BRAND_COLORS[brand]||'#888'; return `background:${c}22;color:${c};`; }
+ 
+function renderRevenueTbody(){
+  document.getElementById('revenue-tbody').innerHTML=[...state.revenues].sort((a,b)=>b.date.localeCompare(a.date)).map(r=>`
+    <tr><td style="font-family:'DM Mono',monospace;">${r.date}</td><td style="font-family:'DM Mono',monospace;color:var(--green);">${r.amount.toLocaleString()}원</td><td><button class="del-btn" onclick="deleteRevenue(${r.id})">×</button></td></tr>`).join('');
+}
+ 
+function renderExpenseTbody(){
+  document.getElementById('expense-tbody').innerHTML=[...state.expenses].sort((a,b)=>b.date.localeCompare(a.date)).map(e=>`
+    <tr><td style="font-family:'DM Mono',monospace;">${e.date}</td><td><span class="badge" style="${getBadgeStyle(e.brand)}">${e.brand}</span></td><td>${e.item}</td><td style="font-family:'DM Mono',monospace;">${e.amount.toLocaleString()}원</td><td><button class="del-btn" onclick="deleteExpense(${e.id})">×</button></td></tr>`).join('');
+}
+ 
+function renderAllTbody(){
+  const all=[...state.revenues.map(r=>({...r,type:'revenue'})),...state.expenses.map(e=>({...e,type:'expense'}))].sort((a,b)=>b.date.localeCompare(a.date));
+  document.getElementById('all-tbody').innerHTML=all.map(row=>{
+    if(row.type==='revenue') return `<tr><td style="font-family:'DM Mono',monospace;">${row.date}</td><td><span class="badge" style="background:rgba(96,165,250,0.12);color:#60a5fa;">매출</span></td><td style="color:var(--text3);">입금</td><td style="font-family:'DM Mono',monospace;color:var(--green);">+${row.amount.toLocaleString()}원</td><td><button class="del-btn" onclick="deleteRevenue(${row.id})">×</button></td></tr>`;
+    return `<tr><td style="font-family:'DM Mono',monospace;">${row.date}</td><td><span class="badge" style="${getBadgeStyle(row.brand)}">${row.brand}</span></td><td>${row.item}</td><td style="font-family:'DM Mono',monospace;color:var(--red);">-${row.amount.toLocaleString()}원</td><td><button class="del-btn" onclick="deleteExpense(${row.id})">×</button></td></tr>`;
+  }).join('');
+}
+ 
+function renderAll(){ renderSummary();renderRevenueChart();renderItemChart();renderBrandChart();renderRevenueTbody();renderExpenseTbody();renderAllTbody(); }
+ 
+function switchItemTab(tab,btn){ itemTab=tab; document.querySelectorAll('#item-tab-row .tab-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); renderItemChart(); }
+function switchInputTab(tab,btn){ ['revenue','expense','list'].forEach(t=>{document.getElementById('panel-'+t).style.display=t===tab?'':'none';}); document.querySelectorAll('#input-tab-row .tab-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); if(tab==='list') renderAllTbody(); }
+ 
+function showMsg(id,txt,isErr){ const el=document.getElementById(id); el.style.color=isErr?'#f87171':'#4ade80'; el.textContent=txt; setTimeout(()=>el.textContent='',2500); }
+ 
+function addRevenue(){
+  const date=document.getElementById('r-date').value;
+  const amount=parseInt(document.getElementById('r-amount').value);
+  if(!date) return showMsg('r-msg','날짜를 입력해주세요',true);
+  if(!amount||amount<=0) return showMsg('r-msg','금액을 입력해주세요',true);
+  state.revenues.push({id:state.nextId++,date,amount});
+  saveData();
+  document.getElementById('r-date').value='';
+  document.getElementById('r-amount').value='';
+  showMsg('r-msg','매출이 추가됐어요!');
+  renderAll();
+}
+ 
+function addExpense(){
+  const date=document.getElementById('e-date').value;
+  const brand=document.getElementById('e-brand').value;
+  const item=document.getElementById('e-item').value.trim();
+  const amount=parseInt(document.getElementById('e-amount').value);
+  if(!date) return showMsg('e-msg','날짜를 입력해주세요',true);
+  if(!item) return showMsg('e-msg','항목명을 입력해주세요',true);
+  if(!amount||amount<=0) return showMsg('e-msg','금액을 입력해주세요',true);
+  state.expenses.push({id:state.nextId++,date,brand,item,amount});
+  saveData();
+  document.getElementById('e-date').value='';
+  document.getElementById('e-item').value='';
+  document.getElementById('e-amount').value='';
+  showMsg('e-msg','지출이 추가됐어요!');
+  renderAll();
+}
+ 
+function deleteRevenue(id){ if(!confirm('이 항목을 삭제할까요?')) return; state.revenues=state.revenues.filter(r=>r.id!==id); saveData(); renderAll(); }
+function deleteExpense(id){ if(!confirm('이 항목을 삭제할까요?')) return; state.expenses=state.expenses.filter(e=>e.id!==id); saveData(); renderAll(); }
+ 
+document.getElementById('r-date').value=today();
+document.getElementById('e-date').value=today();
+renderAll();
+</script>
+</body>
+</html>
